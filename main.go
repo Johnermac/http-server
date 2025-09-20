@@ -37,12 +37,13 @@ func main(){
 	
 	// API
 	mux.HandleFunc("GET /api/healthz", healthHandler)
-	mux.HandleFunc("POST /api/chirps", cfg.validateHandler)
-	mux.HandleFunc("POST /api/users", cfg.usersHandler)
+	mux.HandleFunc("GET /api/chirps", cfg.getAllChirpsHandler)
+	mux.HandleFunc("POST /api/chirps", cfg.createChirpsHandler)
+	mux.HandleFunc("POST /api/users", cfg.createUserHandler)
 
 	// ADMIN
 	mux.HandleFunc("GET /admin/metrics", cfg.metricsHandler)
-	mux.HandleFunc("POST /admin/reset", cfg.resetHandler)
+	mux.HandleFunc("POST /admin/reset", cfg.deleteAllUsersHandler)
 	
 	server := &http.Server{
 		Addr: port,
@@ -78,7 +79,7 @@ func healthHandler(w http.ResponseWriter, r *http.Request){
 	w.Write([]byte("OK"))
 }
 
-func (cfg *apiConfig) validateHandler(w http.ResponseWriter, r *http.Request){
+func (cfg *apiConfig) createChirpsHandler(w http.ResponseWriter, r *http.Request){
 	defer r.Body.Close()
 	type requestBody struct {
 		Data string `json:"body"`
@@ -134,7 +135,18 @@ func (cfg *apiConfig) validateHandler(w http.ResponseWriter, r *http.Request){
 		User_id: chirp.UserID,})				
 }
 
-func (cfg *apiConfig) usersHandler(w http.ResponseWriter, r *http.Request){
+func (cfg *apiConfig) getAllChirpsHandler(w http.ResponseWriter, r *http.Request){
+	chirps, err := cfg.db.GetAllChirps(r.Context())
+	if err != nil {
+		respondWithError(w, 500, "Get All Chirps error")
+		return
+	}
+
+	// respond with array	
+	respondWithJSON(w, 200, chirps)				
+}
+
+func (cfg *apiConfig) createUserHandler(w http.ResponseWriter, r *http.Request){
 	defer r.Body.Close()
 	type requestBody struct {
 		Email string `json:"email"`			
@@ -230,7 +242,7 @@ func (cfg *apiConfig) metricsHandler(w http.ResponseWriter, r *http.Request){
 	w.Write([]byte(x))
 }
 
-func (cfg *apiConfig) resetHandler(w http.ResponseWriter, r *http.Request){
+func (cfg *apiConfig) deleteAllUsersHandler(w http.ResponseWriter, r *http.Request){
 	// reset counting	
 	cfg.fileserverHits.Swap(0)
 
@@ -241,7 +253,7 @@ func (cfg *apiConfig) resetHandler(w http.ResponseWriter, r *http.Request){
 			respondWithError(w, 500 , "Error Deleting Users")
 			return			
 		}
-		respondWithJSON(w, 200, "Deleted")	
+		respondWithJSON(w, 200, "All Users Deleted")	
 		return
 
 	} else {
