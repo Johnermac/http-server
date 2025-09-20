@@ -37,7 +37,7 @@ func main(){
 	
 	// API
 	mux.HandleFunc("GET /api/healthz", healthHandler)
-	mux.HandleFunc("POST /api/validate_chirp", validateHandler)
+	mux.HandleFunc("POST /api/chirps", cfg.validateHandler)
 	mux.HandleFunc("POST /api/users", cfg.usersHandler)
 
 	// ADMIN
@@ -78,15 +78,21 @@ func healthHandler(w http.ResponseWriter, r *http.Request){
 	w.Write([]byte("OK"))
 }
 
-func validateHandler(w http.ResponseWriter, r *http.Request){
+func (cfg *apiConfig) validateHandler(w http.ResponseWriter, r *http.Request){
 	defer r.Body.Close()
 	type requestBody struct {
-		Data string `json:"body"`			
+		Data string `json:"body"`
+		User_id uuid.UUID `json:"user_id"`
 	}
 	type responseBody struct {		
-		Clean string `json:"cleaned_body"`
+		Id uuid.UUID `json:"id"`
+		Created_at time.Time `json:"created_at"`
+		Updated_at time.Time `json:"updated_at"`
+		Data string `json:"body"`
+		User_id uuid.UUID `json:"user_id"`
 	}
 
+	// Normal check
 	dat, err := io.ReadAll(r.Body)
 	if err != nil {
 		respondWithError(w, 500, "Something went wrong")
@@ -106,10 +112,26 @@ func validateHandler(w http.ResponseWriter, r *http.Request){
 		return
 	}
 
-	new := badWordReplacement(params.Data)
-	
-	respondWithJSON(w, 200, responseBody{
-		Clean: new})	
+	new := badWordReplacement(params.Data)	
+
+	chirp, err := cfg.db.CreateChirp(r.Context(), database.CreateChirpParams{
+    Body:   new,
+    UserID: params.User_id, // UUID from users table
+	})
+
+	if err != nil {
+		respondWithError(w, 500, "Create chirp error")
+		return
+	}
+
+
+	// Do something with requestBody		
+	respondWithJSON(w, 201, responseBody{
+		Id: chirp.ID,
+		Created_at: chirp.CreatedAt,
+		Updated_at: chirp.UpdatedAt,
+		Data: chirp.Body,
+		User_id: chirp.UserID,})				
 }
 
 func (cfg *apiConfig) usersHandler(w http.ResponseWriter, r *http.Request){
