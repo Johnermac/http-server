@@ -13,3 +13,8 @@ VALUES (
     $2  -- user_id
 )
 RETURNING *;
+
+-- name: GetChirp :one
+SELECT id, created_at, updated_at, body, user_id
+FROM chirps
+WHERE id = $1; -- user_id
