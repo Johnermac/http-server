@@ -13,6 +13,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/Johnermac/http-server/internal/auth"
 	"github.com/Johnermac/http-server/internal/database"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
@@ -42,6 +43,7 @@ func main(){
 
 	mux.HandleFunc("POST /api/chirps", cfg.createChirpHandler)
 	mux.HandleFunc("POST /api/users", cfg.createUserHandler)
+	mux.HandleFunc("POST /api/login", cfg.loginHandler)
 
 	// ADMIN
 	mux.HandleFunc("GET /admin/metrics", cfg.metricsHandler)
@@ -81,7 +83,7 @@ func healthHandler(w http.ResponseWriter, r *http.Request){
 	w.Write([]byte("OK"))
 }
 
-// create-chirps
+// create-chirp
 func (cfg *apiConfig) createChirpHandler(w http.ResponseWriter, r *http.Request){
 	defer r.Body.Close()
 	type requestBody struct {
@@ -150,7 +152,7 @@ func (cfg *apiConfig) getAllChirpsHandler(w http.ResponseWriter, r *http.Request
 	respondWithJSON(w, 200, chirps)				
 }
 
-// get-chirps
+// get-chirp
 func (cfg *apiConfig) getChirpHandler(w http.ResponseWriter, r *http.Request){
 	type responseBody struct {		
 		Id uuid.UUID `json:"id"`
@@ -188,8 +190,9 @@ func (cfg *apiConfig) getChirpHandler(w http.ResponseWriter, r *http.Request){
 // create-user
 func (cfg *apiConfig) createUserHandler(w http.ResponseWriter, r *http.Request){
 	defer r.Body.Close()
-	type requestBody struct {
+	type requestBody struct {		
 		Email string `json:"email"`			
+		Password string `json:"password"`
 	}
 	type responseBody struct {		
 		Id uuid.UUID `json:"id"`
@@ -211,7 +214,16 @@ func (cfg *apiConfig) createUserHandler(w http.ResponseWriter, r *http.Request){
 		return
 	}
 
-	user, err := cfg.db.CreateUser(r.Context(), params.Email)
+	hash, err := auth.HashPassword(params.Password)
+	if err != nil {
+		respondWithError(w, 500, "Error with Hash Password")
+		return
+	}
+
+	user, err := cfg.db.CreateUser(r.Context(), database.CreateUserParams{
+		Email: params.Email,
+		HashedPassword: hash,
+	})
 	if err != nil {
 		respondWithError(w, 500, "Create user error")
 		return
@@ -227,7 +239,54 @@ func (cfg *apiConfig) createUserHandler(w http.ResponseWriter, r *http.Request){
 		Email: user.Email})	
 }
 
+// login-user
+func (cfg *apiConfig) loginHandler(w http.ResponseWriter, r *http.Request){
+	defer r.Body.Close()
+	type requestBody struct {		
+		Email string `json:"email"`			
+		Password string `json:"password"`
+	}
+	type responseBody struct {		
+		Id uuid.UUID `json:"id"`
+		Created_at time.Time `json:"created_at"`
+		Updated_at time.Time `json:"updated_at"`
+		Email string `json:"email"`
+	}
 
+	// Normal error handling
+	dat, err := io.ReadAll(r.Body)
+	if err != nil {
+		respondWithError(w, 500, "Something went wrong")
+		return
+	}
+	params := requestBody{}
+	err = json.Unmarshal(dat, &params)
+	if err != nil {
+		respondWithError(w, 500, "Couldn't unmarshal parameters")
+		return
+	}	
+
+	user, err := cfg.db.GetUserByEmail(r.Context(), params.Email)
+	if err != nil {
+		respondWithError(w, 404, "User not Found")
+		return
+	}
+
+	err = auth.CheckPasswordHash(params.Password, user.HashedPassword)
+	if err != nil {
+		respondWithError(w, 401, "Unauthorized")
+		return
+	}		
+
+	// Do something with requestBody		
+	respondWithJSON(w, 200, responseBody{
+		Id: user.ID,
+		Created_at: user.CreatedAt,
+		Updated_at: user.UpdatedAt,
+		Email: user.Email})	
+}
+
+// bad-word-filter
 func badWordReplacement (payload string) string{	
   original := strings.Split(payload, " ")  
 	out := make([]string, 0, len(original))
@@ -245,7 +304,7 @@ func badWordReplacement (payload string) string{
 }
 
 
-// JSON Helpers
+// JSON response Helpers
 
 func respondWithJSON(w http.ResponseWriter, code int, payload any) error {
   response, err := json.Marshal(payload)
@@ -264,7 +323,7 @@ func respondWithError(w http.ResponseWriter, code int, msg string) error {
     return respondWithJSON(w, code, map[string]string{"error": msg})
 }
 
-
+// midleware-metrics-inc
 func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {	
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request){
 			cfg.fileserverHits.Add(1)
@@ -272,14 +331,13 @@ func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
 	})
 }
 
+// metrics-handler
 func (cfg *apiConfig) metricsHandler(w http.ResponseWriter, r *http.Request){
 	hits := cfg.fileserverHits.Load()
 	x := fmt.Sprintf(`<html><body><h1>Welcome, Chirpy Admin</h1>
 	<p>Chirpy has been visited %d times!</p></body></html>`, hits)
 
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.WriteHeader(200)
-	w.Write([]byte(x))
+	respondWithJSON(w, 200, x)			
 }
 
 // delete-all-users
