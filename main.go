@@ -24,6 +24,7 @@ type apiConfig struct {
 	fileserverHits atomic.Int32
 	db *database.Queries
 	platform string
+	jwt_secret string
 }
 
 var port = ":8080"
@@ -73,6 +74,7 @@ func NewAPIConfig() *apiConfig {
 	return &apiConfig{
 		db: newDB(),	
 		platform: os.Getenv("PLATFORM"),	
+		jwt_secret: os.Getenv("JWT_SECRET"),
 	}
 }
 
@@ -85,8 +87,7 @@ func healthHandler(w http.ResponseWriter, r *http.Request){
 func (cfg *apiConfig) createChirpHandler(w http.ResponseWriter, r *http.Request){
 	defer r.Body.Close()
 	type requestBody struct {
-		Data string `json:"body"`
-		User_id uuid.UUID `json:"user_id"`
+		Data string `json:"body"`		
 	}
 	type responseBody struct {		
 		Id uuid.UUID `json:"id"`
@@ -96,31 +97,29 @@ func (cfg *apiConfig) createChirpHandler(w http.ResponseWriter, r *http.Request)
 		User_id uuid.UUID `json:"user_id"`
 	}
 
-	// Normal check
-	dat, err := io.ReadAll(r.Body)
+	// Parse request
+	params, err := parseRequest[requestBody](r)
 	if err != nil {
-		respondWithError(w, 500, "Something went wrong")
-		return
-	}
-	params := requestBody{}
-	err = json.Unmarshal(dat, &params)
-	if err != nil {
-		respondWithError(w, 500, "Couldn't unmarshal parameters")
+		respondWithError(w, 400, err.Error())
 		return
 	}
 
-	// Do something with requestBody
+	// Auth
+	userID, err := cfg.authenticateRequest(r)
+	if err != nil {
+		respondWithError(w, 401, err.Error())
+		return
+	}
 
+	// Business logic
 	if len(params.Data) > 140 {
 		respondWithError(w, 400, "Chirp is too long")
 		return
 	}
 
-	new := badWordReplacement(params.Data)	
-
 	chirp, err := cfg.db.CreateChirp(r.Context(), database.CreateChirpParams{
-    Body:   new,
-    UserID: params.User_id, // UUID from users table
+    Body:   badWordReplacement(params.Data),
+    UserID: userID, // UUID from users table
 	})
 
 	if err != nil {
@@ -129,7 +128,7 @@ func (cfg *apiConfig) createChirpHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 
-	// Do something with requestBody		
+	// Do something with responseBody		
 	respondWithJSON(w, 201, responseBody{
 		Id: chirp.ID,
 		Created_at: chirp.CreatedAt,
@@ -199,16 +198,10 @@ func (cfg *apiConfig) createUserHandler(w http.ResponseWriter, r *http.Request){
 		Email string `json:"email"`
 	}
 
-	// Normal error handling
-	dat, err := io.ReadAll(r.Body)
+	// Parse request
+	params, err := parseRequest[requestBody](r)
 	if err != nil {
-		respondWithError(w, 500, "Something went wrong")
-		return
-	}
-	params := requestBody{}
-	err = json.Unmarshal(dat, &params)
-	if err != nil {
-		respondWithError(w, 500, "Couldn't unmarshal parameters")
+		respondWithError(w, 400, err.Error())
 		return
 	}
 
@@ -243,24 +236,20 @@ func (cfg *apiConfig) loginHandler(w http.ResponseWriter, r *http.Request){
 	type requestBody struct {		
 		Email string `json:"email"`			
 		Password string `json:"password"`
+		Expires_in_seconds  int `json:"expires_in_seconds "`
 	}
 	type responseBody struct {		
 		Id uuid.UUID `json:"id"`
 		Created_at time.Time `json:"created_at"`
 		Updated_at time.Time `json:"updated_at"`
 		Email string `json:"email"`
+		Token string `json:"token"`
 	}
 
-	// Normal error handling
-	dat, err := io.ReadAll(r.Body)
+	// Parse request
+	params, err := parseRequest[requestBody](r)
 	if err != nil {
-		respondWithError(w, 500, "Something went wrong")
-		return
-	}
-	params := requestBody{}
-	err = json.Unmarshal(dat, &params)
-	if err != nil {
-		respondWithError(w, 500, "Couldn't unmarshal parameters")
+		respondWithError(w, 400, err.Error())
 		return
 	}	
 
@@ -276,12 +265,31 @@ func (cfg *apiConfig) loginHandler(w http.ResponseWriter, r *http.Request){
 		return
 	}		
 
+	if params.Expires_in_seconds < 1 {
+		params.Expires_in_seconds = 3600 
+	}
+
+	tokenString, err := auth.MakeJWT(
+		user.ID, 
+		cfg.jwt_secret, 
+		time.Duration(params.Expires_in_seconds)*time.Second,
+	)
+
+	if err != nil {
+		respondWithError(w, 500, "Error in Token creation")
+		return
+	}
+
+	// w.Header().Set("Authorization", "Bearer " + tokenString)
+	
+
 	// Do something with requestBody		
 	respondWithJSON(w, 200, responseBody{
 		Id: user.ID,
 		Created_at: user.CreatedAt,
 		Updated_at: user.UpdatedAt,
-		Email: user.Email})	
+		Email: user.Email,
+		Token: tokenString})	
 }
 
 // bad-word-filter
@@ -319,6 +327,32 @@ func respondWithJSON(w http.ResponseWriter, code int, payload any) error {
 
 func respondWithError(w http.ResponseWriter, code int, msg string) error {
     return respondWithJSON(w, code, map[string]string{"error": msg})
+}
+
+// validation Helpers
+
+func parseRequest[T any](r *http.Request) (T, error) {
+	var params T
+	dat, err := io.ReadAll(r.Body)
+	if err != nil {
+		return params, fmt.Errorf("Something went wrong")
+	}
+	if err := json.Unmarshal(dat, &params); err != nil {
+		return params, fmt.Errorf("Couldn't unmarshal parameters")
+	}
+	return params, nil
+}
+
+func (cfg *apiConfig) authenticateRequest(r *http.Request) (uuid.UUID, error) {
+	tokenString, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("Missing or invalid Authorization header")
+	}
+	userID, err := auth.ValidateJWT(tokenString, cfg.jwt_secret)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("Invalid or expired token")
+	}
+	return userID, nil
 }
 
 // midleware-metrics-inc

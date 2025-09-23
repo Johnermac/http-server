@@ -2,6 +2,8 @@ package auth
 
 import (
 	"errors"
+	"net/http"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -68,4 +70,26 @@ func ValidateJWT(tokenString, tokenSecret string) (uuid.UUID, error){
 		}
 		
 		return userId, nil
+}
+
+// get-bearer-token
+func GetBearerToken(headers http.Header) (string, error){
+	// make sure is not empty
+	authHeader := headers.Get("Authorization")
+	if authHeader == "" {
+		return "", errors.New("Empty auth header")
+	}
+
+	// make sure its bearer
+	parts := strings.SplitN(authHeader, " ", 2)	
+	if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
+		return "", errors.New("Not a bearer token")
+	}	
+
+	// make sure the second part is not empty
+	if strings.TrimSpace(parts[1]) == "" {
+    return "", errors.New("Empty bearer token")
+	}
+	
+	return parts[1], nil
 }

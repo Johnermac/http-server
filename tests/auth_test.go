@@ -2,6 +2,7 @@ package tests
 
 import (
 	"fmt"
+	"net/http"
 	"testing"
 	"time"
 
@@ -78,7 +79,6 @@ func TestValidateJWT(t *testing.T) {
 	}
 }
 
-
 func TestMakeJWT(t *testing.T) {
 	secret := "test-secret"
 	userID := uuid.New()
@@ -113,6 +113,66 @@ func TestMakeJWT(t *testing.T) {
 		})
 
 		valid := err == nil && parsedToken.Valid
+
+		if valid != tc.shouldPass {
+			failCount++
+			t.Errorf(`---------------------------------
+Case:       %s
+Expecting:  %v
+Actual:     %v
+Fail
+`, tc.name, tc.shouldPass, valid)
+		} else {
+			passCount++
+			fmt.Printf(`---------------------------------
+Case:       %s
+Expecting:  %v
+Actual:     %v
+Pass
+`, tc.name, tc.shouldPass, valid)
+		}
+	}
+
+	fmt.Println("---------------------------------")
+	fmt.Printf("%d passed, %d failed\n", passCount, failCount)
+}
+
+func TestGetBearerToken(t *testing.T) {
+	type testCase struct {
+		name       string
+		header     http.Header
+		shouldPass bool
+	}
+
+	testCases := []testCase{
+		{
+			name:       "valid token",
+			header:     http.Header{"Authorization": []string{"Bearer token_example"}},
+			shouldPass: true,
+		},
+		{
+			name:       "not bearer",
+			header:     http.Header{"Authorization": []string{"Basic token_example"}},
+			shouldPass: false,
+		},
+		{
+			name:       "empty token",
+			header:     http.Header{"Authorization": []string{"Bearer "}},
+			shouldPass: false,
+		},
+		{
+			name:       "missing header",
+			header:     http.Header{},
+			shouldPass: false,
+		},
+	}
+
+	passCount := 0
+	failCount := 0
+
+	for _, tc := range testCases {
+		_, err := auth.GetBearerToken(tc.header)
+		valid := (err == nil) // if no error, consider it valid
 
 		if valid != tc.shouldPass {
 			failCount++
