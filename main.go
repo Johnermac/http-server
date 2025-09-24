@@ -45,6 +45,8 @@ func main(){
 	mux.HandleFunc("POST /api/chirps", cfg.createChirpHandler)
 	mux.HandleFunc("POST /api/users", cfg.createUserHandler)
 	mux.HandleFunc("POST /api/login", cfg.loginHandler)
+	mux.HandleFunc("POST /api/refresh", cfg.refreshTokenHandler)
+	mux.HandleFunc("POST /api/revoke", cfg.revokeRefreshTokenHandler)
 
 	// ADMIN
 	mux.HandleFunc("GET /admin/metrics", cfg.metricsHandler)
@@ -234,16 +236,18 @@ func (cfg *apiConfig) createUserHandler(w http.ResponseWriter, r *http.Request){
 func (cfg *apiConfig) loginHandler(w http.ResponseWriter, r *http.Request){
 	defer r.Body.Close()
 	type requestBody struct {		
-		Email string `json:"email"`			
-		Password string `json:"password"`
-		Expires_in_seconds  int `json:"expires_in_seconds "`
+		Email			string `json:"email"`			
+		Password 	string `json:"password"`
+		// Expires_in_seconds  int `json:"expires_in_seconds "`
 	}
 	type responseBody struct {		
-		Id uuid.UUID `json:"id"`
-		Created_at time.Time `json:"created_at"`
-		Updated_at time.Time `json:"updated_at"`
-		Email string `json:"email"`
-		Token string `json:"token"`
+		Id 						uuid.UUID `json:"id"`
+		Created_at 		time.Time `json:"created_at"`
+		Updated_at 		time.Time `json:"updated_at"`
+		Email 				string `json:"email"`
+		Token 				string `json:"token"`
+		Refresh_token string `json:"refresh_token"`
+		
 	}
 
 	// Parse request
@@ -263,16 +267,11 @@ func (cfg *apiConfig) loginHandler(w http.ResponseWriter, r *http.Request){
 	if err != nil {
 		respondWithError(w, 401, "Unauthorized")
 		return
-	}		
-
-	if params.Expires_in_seconds < 1 {
-		params.Expires_in_seconds = 3600 
-	}
+	}			
 
 	tokenString, err := auth.MakeJWT(
 		user.ID, 
-		cfg.jwt_secret, 
-		time.Duration(params.Expires_in_seconds)*time.Second,
+		cfg.jwt_secret,
 	)
 
 	if err != nil {
@@ -280,8 +279,19 @@ func (cfg *apiConfig) loginHandler(w http.ResponseWriter, r *http.Request){
 		return
 	}
 
-	// w.Header().Set("Authorization", "Bearer " + tokenString)
-	
+	// get refresh token
+	refreshToken, err := auth.MakeRefreshToken() 
+	if err != nil {
+		respondWithError(w, 500, "Error in Refresh Token creation")
+		return
+	}
+
+	// save-refresh-token in db
+	cfg.db.InsertRefreshToken(r.Context(), database.InsertRefreshTokenParams{
+		Token: refreshToken,
+		UserID: user.ID,
+	})
+
 
 	// Do something with requestBody		
 	respondWithJSON(w, 200, responseBody{
@@ -289,8 +299,67 @@ func (cfg *apiConfig) loginHandler(w http.ResponseWriter, r *http.Request){
 		Created_at: user.CreatedAt,
 		Updated_at: user.UpdatedAt,
 		Email: user.Email,
+		Token: tokenString,
+		Refresh_token: refreshToken,})	
+}
+
+// refresh-token
+func (cfg *apiConfig) refreshTokenHandler(w http.ResponseWriter, r *http.Request){
+	defer r.Body.Close()
+
+	type responseBody struct {		
+		Token		string `json:"token"`		
+	}
+	
+	refreshToken, err := auth.GetBearerToken(r.Header) 
+	if err != nil {
+		respondWithError(w, 401, "Unauthorized")
+		return
+	}
+
+	// validate the refreshToken in the databse
+	token, err := cfg.db.GetRefreshToken(r.Context(), refreshToken)
+	if err != nil {
+		respondWithError(w, 401, "Unauthorized")
+		return
+	}
+
+	tokenString, err := auth.MakeJWT(
+		token.UserID, 
+		cfg.jwt_secret,
+	)
+
+	if err != nil {
+		respondWithError(w, 500, "Error in Token creation")
+		return
+	}	
+
+	// Do something with responseBody		
+	respondWithJSON(w, 200, responseBody{		
 		Token: tokenString})	
 }
+
+
+// revoke-refresh-token
+func (cfg *apiConfig) revokeRefreshTokenHandler(w http.ResponseWriter, r *http.Request){
+	defer r.Body.Close()
+
+	refreshToken, err := auth.GetBearerToken(r.Header) 
+	if err != nil {
+		respondWithError(w, 401, "Unauthorized")
+		return
+	}	
+
+	_, err = cfg.db.UpdateRevokeAt(r.Context(), refreshToken)
+	if err != nil {
+		respondWithError(w, 401, "Unauthorized")
+		return
+	}	
+
+	respondWithJSON(w, 204, "")	
+}
+
+
 
 // bad-word-filter
 func badWordReplacement (payload string) string{	
@@ -348,6 +417,12 @@ func (cfg *apiConfig) authenticateRequest(r *http.Request) (uuid.UUID, error) {
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("Missing or invalid Authorization header")
 	}
+
+	// sanity check
+	if strings.Count(tokenString, ".") != 2 {
+		return uuid.Nil, fmt.Errorf("Invalid or expired token")
+	}
+
 	userID, err := auth.ValidateJWT(tokenString, cfg.jwt_secret)
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("Invalid or expired token")
