@@ -8,7 +8,7 @@ import (
 )
 
 // refresh-token
-func (cfg *APIConfig) RefreshTokenHandler(w http.ResponseWriter, r *http.Request){
+func (cfg *APIConfig) UpdateTokenHandler(w http.ResponseWriter, r *http.Request){
 	defer r.Body.Close()
 
 	type responseBody struct {		

@@ -56,8 +56,60 @@ func (cfg *APIConfig) CreateUserHandler(w http.ResponseWriter, r *http.Request){
 		Email: user.Email})	
 }
 
+// update-user
+func (cfg *APIConfig) UpdateUserHandler(w http.ResponseWriter, r *http.Request){
+	defer r.Body.Close()
+	type requestBody struct {		
+		Email string `json:"email"`			
+		Password string `json:"password"`
+	}
+	type responseBody struct {		
+		Id uuid.UUID `json:"id"`
+		Created_at time.Time `json:"created_at"`
+		Updated_at time.Time `json:"updated_at"`
+		Email string `json:"email"`
+	}
+
+	// Parse request
+	params, err := helpers.ParseRequest[requestBody](r)
+	if err != nil {
+		helpers.RespondWithError(w, 400, err.Error())
+		return
+	}
+
+	// Auth
+	userID, err := cfg.AuthenticateRequest(r)
+	if err != nil {
+		helpers.RespondWithError(w, 401, err.Error())
+		return
+	}
+
+	hash, err := auth.HashPassword(params.Password)
+	if err != nil {
+		helpers.RespondWithError(w, 500, "Error with Hash Password")
+		return
+	}
+
+	user, err := cfg.DB.UpdateUser(r.Context(), database.UpdateUserParams{
+		ID: userID,
+		Email: params.Email,
+		HashedPassword: hash,
+	})
+	if err != nil {
+		helpers.RespondWithError(w, 401, "Update user error")
+		return
+	}
+
+	// Do something with requestBody		
+	helpers.RespondWithJSON(w, 200, responseBody{
+		Id: user.ID,
+		Created_at: user.CreatedAt,
+		Updated_at: user.UpdatedAt,
+		Email: user.Email})	
+}
+
 // login-user
-func (cfg *APIConfig) LoginHandler(w http.ResponseWriter, r *http.Request){
+func (cfg *APIConfig) LoginUserHandler(w http.ResponseWriter, r *http.Request){
 	defer r.Body.Close()
 	type requestBody struct {		
 		Email			string `json:"email"`			
