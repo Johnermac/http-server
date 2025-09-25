@@ -59,5 +59,5 @@ func (cfg *APIConfig) RevokeTokenHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}	
 
-	helpers.RespondWithJSON(w, 204, "")	
+	helpers.RespondNoContent(w)		
 }

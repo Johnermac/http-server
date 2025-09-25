@@ -10,6 +10,7 @@ import (
 )
 
 // bad-word-filter
+
 func BadWordReplacement (payload string) string{	
   original := strings.Split(payload, " ")  
 	out := make([]string, 0, len(original))
@@ -27,7 +28,7 @@ func BadWordReplacement (payload string) string{
 }
 
 
-// JSON response Helpers
+// respond-with-JSON
 
 func RespondWithJSON(w http.ResponseWriter, code int, payload any) error {
   response, err := json.Marshal(payload)
@@ -42,11 +43,19 @@ func RespondWithJSON(w http.ResponseWriter, code int, payload any) error {
 	return nil
 }
 
+// respond-with-error
+
 func RespondWithError(w http.ResponseWriter, code int, msg string) error {
     return RespondWithJSON(w, code, map[string]string{"error": msg})
 }
 
-// validation Helpers
+// respond-no-content
+func RespondNoContent(w http.ResponseWriter) {
+    w.Header().Set("Access-Control-Allow-Origin", "*")
+    w.WriteHeader(http.StatusNoContent)
+}
+
+// parse-request
 
 func ParseRequest[T any](r *http.Request) (T, error) {
 	var params T

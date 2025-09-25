@@ -27,7 +27,8 @@ func main(){
 	mux.HandleFunc("GET /api/chirps/{chirpID}", cfg.GetChirpHandler)
 	mux.HandleFunc("GET /api/chirps", cfg.GetAllChirpsHandler)
 	mux.HandleFunc("POST /api/chirps", cfg.CreateChirpHandler)
-
+	mux.HandleFunc("DELETE /api/chirps/{chirpID}", cfg.DeleteChirpHandler)
+	
 	// users
 	mux.HandleFunc("POST /api/users", cfg.CreateUserHandler)
 	mux.HandleFunc("PUT /api/users", cfg.UpdateUserHandler)

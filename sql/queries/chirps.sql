@@ -17,4 +17,9 @@ RETURNING *;
 -- name: GetChirp :one
 SELECT id, created_at, updated_at, body, user_id
 FROM chirps
-WHERE id = $1; -- user_id
+WHERE id = $1; -- chirp_id
+
+-- name: DeleteChirp :exec
+DELETE FROM chirps
+WHERE user_id = $1 -- user_id
+AND id = $2; -- chirp_id

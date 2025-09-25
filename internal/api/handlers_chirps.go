@@ -1,6 +1,8 @@
 package api
 
 import (
+	"database/sql"
+	"errors"
 	"net/http"
 	"time"
 
@@ -108,4 +110,55 @@ func (cfg *APIConfig) GetChirpHandler(w http.ResponseWriter, r *http.Request){
 		Data: chirp.Body,
 		User_id: chirp.UserID,
 	})				
+}
+
+// delete-chirp
+func (cfg *APIConfig) DeleteChirpHandler(w http.ResponseWriter, r *http.Request){
+	type responseBody struct {		
+		Id uuid.UUID `json:"id"`
+		Created_at time.Time `json:"created_at"`
+		Updated_at time.Time `json:"updated_at"`
+		Data string `json:"body"`
+		User_id uuid.UUID `json:"user_id"`
+	}
+
+	chirpIDStr := r.PathValue("chirpID")
+
+	// Convert string → UUID
+	chirpID, err := uuid.Parse(chirpIDStr)
+	if err != nil {
+		helpers.RespondWithError(w, 400, "Invalid chirp ID")
+		return
+	}	
+
+	// Auth
+	userID, err := cfg.AuthenticateRequest(r)
+	if err != nil {
+		helpers.RespondWithError(w, 401, err.Error())
+		return
+	}	
+	
+	chirp, err := cfg.DB.GetChirp(r.Context(), chirpID)
+	if errors.Is(err, sql.ErrNoRows) { helpers.RespondWithError(w, 404, "Chirp not found"); return }
+	if err != nil {
+		helpers.RespondWithError(w, 500, "Database error")
+		return
+	}
+
+	if chirp.UserID != userID {
+		helpers.RespondWithError(w, 403, "Forbidden")
+		return
+	}
+
+	err = cfg.DB.DeleteChirp(r.Context(), database.DeleteChirpParams{
+		UserID: userID,
+		ID: chirpID,
+	})
+	if err != nil {
+		helpers.RespondWithError(w, 500, "Database error")
+		return
+	}
+
+	// respond with responseBody	
+	helpers.RespondNoContent(w)			
 }
