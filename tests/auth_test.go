@@ -101,7 +101,7 @@ func TestMakeJWT(t *testing.T) {
 	failCount := 0
 
 	for _, tc := range testCases {
-		tokenString, err := auth.MakeJWT(tc.userID, tc.secret, tc.expiresIn)
+		tokenString, err := auth.MakeJWT(tc.userID, tc.secret)
 		if err != nil {
 			t.Errorf("MakeJWT error: %v", err)
 			continue
