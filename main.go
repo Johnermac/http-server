@@ -28,12 +28,13 @@ func main(){
 	mux.HandleFunc("GET /api/chirps", cfg.GetAllChirpsHandler)
 	mux.HandleFunc("POST /api/chirps", cfg.CreateChirpHandler)
 	mux.HandleFunc("DELETE /api/chirps/{chirpID}", cfg.DeleteChirpHandler)
-	
+		
 	// users
 	mux.HandleFunc("POST /api/users", cfg.CreateUserHandler)
 	mux.HandleFunc("PUT /api/users", cfg.UpdateUserHandler)
 	mux.HandleFunc("POST /api/login", cfg.LoginUserHandler)
 	mux.HandleFunc("POST /admin/reset", cfg.DeleteAllUsersHandler)	
+	mux.HandleFunc("POST /api/polka/webhooks", cfg.UpdatePremiumUserHandler)	
 
 	// token
 	mux.HandleFunc("POST /api/refresh", cfg.UpdateTokenHandler)

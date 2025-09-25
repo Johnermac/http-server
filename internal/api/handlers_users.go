@@ -22,6 +22,7 @@ func (cfg *APIConfig) CreateUserHandler(w http.ResponseWriter, r *http.Request){
 		Created_at time.Time `json:"created_at"`
 		Updated_at time.Time `json:"updated_at"`
 		Email string `json:"email"`
+		IsChirpyRed 	bool `json:"is_chirpy_red"`
 	}
 
 	// Parse request
@@ -53,7 +54,8 @@ func (cfg *APIConfig) CreateUserHandler(w http.ResponseWriter, r *http.Request){
 		Id: user.ID,
 		Created_at: user.CreatedAt,
 		Updated_at: user.UpdatedAt,
-		Email: user.Email})	
+		Email: user.Email,
+		IsChirpyRed: user.IsChirpyRed})	
 }
 
 // update-user
@@ -68,6 +70,7 @@ func (cfg *APIConfig) UpdateUserHandler(w http.ResponseWriter, r *http.Request){
 		Created_at time.Time `json:"created_at"`
 		Updated_at time.Time `json:"updated_at"`
 		Email string `json:"email"`
+		IsChirpyRed bool `json:"is_chirpy_red"`		
 	}
 
 	// Parse request
@@ -105,7 +108,8 @@ func (cfg *APIConfig) UpdateUserHandler(w http.ResponseWriter, r *http.Request){
 		Id: user.ID,
 		Created_at: user.CreatedAt,
 		Updated_at: user.UpdatedAt,
-		Email: user.Email})	
+		Email: user.Email,
+		IsChirpyRed: user.IsChirpyRed})	
 }
 
 // login-user
@@ -123,7 +127,7 @@ func (cfg *APIConfig) LoginUserHandler(w http.ResponseWriter, r *http.Request){
 		Email 				string `json:"email"`
 		Token 				string `json:"token"`
 		Refresh_token string `json:"refresh_token"`
-		
+		IsChirpyRed 	bool `json:"is_chirpy_red"`		
 	}
 
 	// Parse request
@@ -176,7 +180,8 @@ func (cfg *APIConfig) LoginUserHandler(w http.ResponseWriter, r *http.Request){
 		Updated_at: user.UpdatedAt,
 		Email: user.Email,
 		Token: tokenString,
-		Refresh_token: refreshToken,})	
+		Refresh_token: refreshToken,
+		IsChirpyRed: user.IsChirpyRed})	
 }
 
 // delete-all-users
@@ -198,4 +203,42 @@ func (cfg *APIConfig) DeleteAllUsersHandler(w http.ResponseWriter, r *http.Reque
 		helpers.RespondWithError(w, 403, "Can only delete in DEV environment!")
 		return
 	}
+}
+
+
+// update-premium-user
+func (cfg *APIConfig) UpdatePremiumUserHandler(w http.ResponseWriter, r *http.Request){
+	defer r.Body.Close()
+	type requestBody struct {
+		Event string `json:"event"`
+		Data  struct {
+			UserID string `json:"user_id"`
+		} `json:"data"`
+	}	
+
+	// Parse request
+	params, err := helpers.ParseRequest[requestBody](r)
+	if err != nil {
+		helpers.RespondWithError(w, 400, err.Error())
+		return
+	}
+
+	if params.Event != "user.upgraded" {
+		helpers.RespondNoContent(w)
+		return
+	}
+
+	userID, _ := uuid.Parse(params.Data.UserID)
+
+	err = cfg.DB.UpdatePremiumUser(r.Context(), database.UpdatePremiumUserParams{
+		ID: userID,
+		IsChirpyRed: true,
+	})
+	if err != nil {
+		helpers.RespondWithError(w, 404, "User not found")
+		return
+	}
+
+	// Respond with 204	
+	helpers.RespondNoContent(w)
 }
