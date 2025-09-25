@@ -228,6 +228,12 @@ func (cfg *APIConfig) UpdatePremiumUserHandler(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	key, err := auth.GetAPIKey(r.Header)
+	if err != nil || key != cfg.Polka_KEY {
+		helpers.RespondWithError(w, 401, "Unauthorized")
+		return
+	}
+
 	userID, _ := uuid.Parse(params.Data.UserID)
 
 	err = cfg.DB.UpdatePremiumUser(r.Context(), database.UpdatePremiumUserParams{

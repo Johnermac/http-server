@@ -15,6 +15,7 @@ type APIConfig struct {
 	DB   					 *database.Queries
 	Platform 				string
 	JWTSecret  			string
+	Polka_KEY				string
 }
 
 
@@ -36,5 +37,6 @@ func NewAPIConfig() *APIConfig {
 		DB: newDB(),	
 		Platform: os.Getenv("PLATFORM"),	
 		JWTSecret: os.Getenv("JWT_SECRET"),
+		Polka_KEY: os.Getenv("POLKA_KEY"),
 	}
 }

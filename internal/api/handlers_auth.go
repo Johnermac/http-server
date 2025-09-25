@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 )
 
+// authenticate-request
 func (cfg *APIConfig) AuthenticateRequest(r *http.Request) (uuid.UUID, error) {
 	tokenString, err := auth.GetBearerToken(r.Header)
 	if err != nil {
