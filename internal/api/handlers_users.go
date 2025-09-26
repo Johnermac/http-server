@@ -11,18 +11,18 @@ import (
 )
 
 // create-user
-func (cfg *APIConfig) CreateUserHandler(w http.ResponseWriter, r *http.Request){
+func (cfg *APIConfig) CreateUserHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
-	type requestBody struct {		
-		Email string `json:"email"`			
+	type requestBody struct {
+		Email    string `json:"email"`
 		Password string `json:"password"`
 	}
-	type responseBody struct {		
-		Id uuid.UUID `json:"id"`
-		Created_at time.Time `json:"created_at"`
-		Updated_at time.Time `json:"updated_at"`
-		Email string `json:"email"`
-		IsChirpyRed 	bool `json:"is_chirpy_red"`
+	type responseBody struct {
+		Id          uuid.UUID `json:"id"`
+		Created_at  time.Time `json:"created_at"`
+		Updated_at  time.Time `json:"updated_at"`
+		Email       string    `json:"email"`
+		IsChirpyRed bool      `json:"is_chirpy_red"`
 	}
 
 	// Parse request
@@ -39,7 +39,7 @@ func (cfg *APIConfig) CreateUserHandler(w http.ResponseWriter, r *http.Request){
 	}
 
 	user, err := cfg.DB.CreateUser(r.Context(), database.CreateUserParams{
-		Email: params.Email,
+		Email:          params.Email,
 		HashedPassword: hash,
 	})
 	if err != nil {
@@ -49,28 +49,28 @@ func (cfg *APIConfig) CreateUserHandler(w http.ResponseWriter, r *http.Request){
 
 	//fmt.Println("User: %v has been created in DB", user)
 
-	// Do something with requestBody		
+	// Do something with requestBody
 	helpers.RespondWithJSON(w, 201, responseBody{
-		Id: user.ID,
-		Created_at: user.CreatedAt,
-		Updated_at: user.UpdatedAt,
-		Email: user.Email,
-		IsChirpyRed: user.IsChirpyRed})	
+		Id:          user.ID,
+		Created_at:  user.CreatedAt,
+		Updated_at:  user.UpdatedAt,
+		Email:       user.Email,
+		IsChirpyRed: user.IsChirpyRed})
 }
 
 // update-user
-func (cfg *APIConfig) UpdateUserHandler(w http.ResponseWriter, r *http.Request){
+func (cfg *APIConfig) UpdateUserHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
-	type requestBody struct {		
-		Email string `json:"email"`			
+	type requestBody struct {
+		Email    string `json:"email"`
 		Password string `json:"password"`
 	}
-	type responseBody struct {		
-		Id uuid.UUID `json:"id"`
-		Created_at time.Time `json:"created_at"`
-		Updated_at time.Time `json:"updated_at"`
-		Email string `json:"email"`
-		IsChirpyRed bool `json:"is_chirpy_red"`		
+	type responseBody struct {
+		Id          uuid.UUID `json:"id"`
+		Created_at  time.Time `json:"created_at"`
+		Updated_at  time.Time `json:"updated_at"`
+		Email       string    `json:"email"`
+		IsChirpyRed bool      `json:"is_chirpy_red"`
 	}
 
 	// Parse request
@@ -94,8 +94,8 @@ func (cfg *APIConfig) UpdateUserHandler(w http.ResponseWriter, r *http.Request){
 	}
 
 	user, err := cfg.DB.UpdateUser(r.Context(), database.UpdateUserParams{
-		ID: userID,
-		Email: params.Email,
+		ID:             userID,
+		Email:          params.Email,
 		HashedPassword: hash,
 	})
 	if err != nil {
@@ -103,31 +103,31 @@ func (cfg *APIConfig) UpdateUserHandler(w http.ResponseWriter, r *http.Request){
 		return
 	}
 
-	// Do something with requestBody		
+	// Do something with requestBody
 	helpers.RespondWithJSON(w, 200, responseBody{
-		Id: user.ID,
-		Created_at: user.CreatedAt,
-		Updated_at: user.UpdatedAt,
-		Email: user.Email,
-		IsChirpyRed: user.IsChirpyRed})	
+		Id:          user.ID,
+		Created_at:  user.CreatedAt,
+		Updated_at:  user.UpdatedAt,
+		Email:       user.Email,
+		IsChirpyRed: user.IsChirpyRed})
 }
 
 // login-user
-func (cfg *APIConfig) LoginUserHandler(w http.ResponseWriter, r *http.Request){
+func (cfg *APIConfig) LoginUserHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
-	type requestBody struct {		
-		Email			string `json:"email"`			
-		Password 	string `json:"password"`
+	type requestBody struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
 		// Expires_in_seconds  int `json:"expires_in_seconds "`
 	}
-	type responseBody struct {		
-		Id 						uuid.UUID `json:"id"`
-		Created_at 		time.Time `json:"created_at"`
-		Updated_at 		time.Time `json:"updated_at"`
-		Email 				string `json:"email"`
-		Token 				string `json:"token"`
-		Refresh_token string `json:"refresh_token"`
-		IsChirpyRed 	bool `json:"is_chirpy_red"`		
+	type responseBody struct {
+		Id            uuid.UUID `json:"id"`
+		Created_at    time.Time `json:"created_at"`
+		Updated_at    time.Time `json:"updated_at"`
+		Email         string    `json:"email"`
+		Token         string    `json:"token"`
+		Refresh_token string    `json:"refresh_token"`
+		IsChirpyRed   bool      `json:"is_chirpy_red"`
 	}
 
 	// Parse request
@@ -135,7 +135,7 @@ func (cfg *APIConfig) LoginUserHandler(w http.ResponseWriter, r *http.Request){
 	if err != nil {
 		helpers.RespondWithError(w, 400, err.Error())
 		return
-	}	
+	}
 
 	user, err := cfg.DB.GetUserByEmail(r.Context(), params.Email)
 	if err != nil {
@@ -147,10 +147,10 @@ func (cfg *APIConfig) LoginUserHandler(w http.ResponseWriter, r *http.Request){
 	if err != nil {
 		helpers.RespondWithError(w, 401, "Unauthorized")
 		return
-	}			
+	}
 
 	tokenString, err := auth.MakeJWT(
-		user.ID, 
+		user.ID,
 		cfg.JWTSecret,
 	)
 
@@ -160,7 +160,7 @@ func (cfg *APIConfig) LoginUserHandler(w http.ResponseWriter, r *http.Request){
 	}
 
 	// get refresh token
-	refreshToken, err := auth.MakeRefreshToken() 
+	refreshToken, err := auth.MakeRefreshToken()
 	if err != nil {
 		helpers.RespondWithError(w, 500, "Error in Refresh Token creation")
 		return
@@ -168,35 +168,34 @@ func (cfg *APIConfig) LoginUserHandler(w http.ResponseWriter, r *http.Request){
 
 	// save-refresh-token in DB
 	cfg.DB.InsertRefreshToken(r.Context(), database.InsertRefreshTokenParams{
-		Token: refreshToken,
+		Token:  refreshToken,
 		UserID: user.ID,
 	})
 
-
-	// Do something with requestBody		
+	// Do something with requestBody
 	helpers.RespondWithJSON(w, 200, responseBody{
-		Id: user.ID,
-		Created_at: user.CreatedAt,
-		Updated_at: user.UpdatedAt,
-		Email: user.Email,
-		Token: tokenString,
+		Id:            user.ID,
+		Created_at:    user.CreatedAt,
+		Updated_at:    user.UpdatedAt,
+		Email:         user.Email,
+		Token:         tokenString,
 		Refresh_token: refreshToken,
-		IsChirpyRed: user.IsChirpyRed})	
+		IsChirpyRed:   user.IsChirpyRed})
 }
 
 // delete-all-users
-func (cfg *APIConfig) DeleteAllUsersHandler(w http.ResponseWriter, r *http.Request){
-	// reset counting	
+func (cfg *APIConfig) DeleteAllUsersHandler(w http.ResponseWriter, r *http.Request) {
+	// reset counting
 	cfg.FileserverHits.Swap(0)
 
-	// reset User in DB		
+	// reset User in DB
 	if cfg.Platform == "dev" {
 		err := cfg.DB.DeleteAllUsers(r.Context())
 		if err != nil {
-			helpers.RespondWithError(w, 500 , "Error Deleting Users")
-			return			
+			helpers.RespondWithError(w, 500, "Error Deleting Users")
+			return
 		}
-		helpers.RespondWithJSON(w, 200, "All Users Deleted")	
+		helpers.RespondWithJSON(w, 200, "All Users Deleted")
 		return
 
 	} else {
@@ -205,16 +204,15 @@ func (cfg *APIConfig) DeleteAllUsersHandler(w http.ResponseWriter, r *http.Reque
 	}
 }
 
-
 // update-premium-user
-func (cfg *APIConfig) UpdatePremiumUserHandler(w http.ResponseWriter, r *http.Request){
+func (cfg *APIConfig) UpdatePremiumUserHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	type requestBody struct {
 		Event string `json:"event"`
 		Data  struct {
 			UserID string `json:"user_id"`
 		} `json:"data"`
-	}	
+	}
 
 	// Parse request
 	params, err := helpers.ParseRequest[requestBody](r)
@@ -237,7 +235,7 @@ func (cfg *APIConfig) UpdatePremiumUserHandler(w http.ResponseWriter, r *http.Re
 	userID, _ := uuid.Parse(params.Data.UserID)
 
 	err = cfg.DB.UpdatePremiumUser(r.Context(), database.UpdatePremiumUserParams{
-		ID: userID,
+		ID:          userID,
 		IsChirpyRed: true,
 	})
 	if err != nil {
@@ -245,6 +243,6 @@ func (cfg *APIConfig) UpdatePremiumUserHandler(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	// Respond with 204	
+	// Respond with 204
 	helpers.RespondNoContent(w)
 }

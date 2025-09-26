@@ -11,31 +11,30 @@ import (
 )
 
 type APIConfig struct {
-	FileserverHits 	atomic.Int32
-	DB   					 *database.Queries
-	Platform 				string
-	JWTSecret  			string
-	Polka_KEY				string
+	FileserverHits atomic.Int32
+	DB             *database.Queries
+	Platform       string
+	JWTSecret      string
+	Polka_KEY      string
 }
 
-
 func newDB() *database.Queries {
-    godotenv.Load()
+	godotenv.Load()
 
-    dbURL := os.Getenv("DB_URL")			
+	dbURL := os.Getenv("DB_URL")
 
-    db, err := sql.Open("postgres", dbURL)
-    if err != nil {
-        log.Fatal("cannot connect to db:", err)
-    }
+	db, err := sql.Open("postgres", dbURL)
+	if err != nil {
+		log.Fatal("cannot connect to db:", err)
+	}
 
-    return database.New(db)
+	return database.New(db)
 }
 
 func NewAPIConfig() *APIConfig {
 	return &APIConfig{
-		DB: newDB(),	
-		Platform: os.Getenv("PLATFORM"),	
+		DB:        newDB(),
+		Platform:  os.Getenv("PLATFORM"),
 		JWTSecret: os.Getenv("JWT_SECRET"),
 		Polka_KEY: os.Getenv("POLKA_KEY"),
 	}

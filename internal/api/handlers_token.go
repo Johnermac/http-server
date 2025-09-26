@@ -8,14 +8,14 @@ import (
 )
 
 // refresh-token
-func (cfg *APIConfig) UpdateTokenHandler(w http.ResponseWriter, r *http.Request){
+func (cfg *APIConfig) UpdateTokenHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
-	type responseBody struct {		
-		Token		string `json:"token"`		
+	type responseBody struct {
+		Token string `json:"token"`
 	}
-	
-	refreshToken, err := auth.GetBearerToken(r.Header) 
+
+	refreshToken, err := auth.GetBearerToken(r.Header)
 	if err != nil {
 		helpers.RespondWithError(w, 401, "Unauthorized")
 		return
@@ -29,35 +29,35 @@ func (cfg *APIConfig) UpdateTokenHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	tokenString, err := auth.MakeJWT(
-		token.UserID, 
+		token.UserID,
 		cfg.JWTSecret,
 	)
 
 	if err != nil {
 		helpers.RespondWithError(w, 500, "Error in Token creation")
 		return
-	}	
+	}
 
-	// Do something with responseBody		
-	helpers.RespondWithJSON(w, 200, responseBody{		
-		Token: tokenString})	
+	// Do something with responseBody
+	helpers.RespondWithJSON(w, 200, responseBody{
+		Token: tokenString})
 }
 
 // revoke-refresh-token
-func (cfg *APIConfig) RevokeTokenHandler(w http.ResponseWriter, r *http.Request){
+func (cfg *APIConfig) RevokeTokenHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
-	refreshToken, err := auth.GetBearerToken(r.Header) 
+	refreshToken, err := auth.GetBearerToken(r.Header)
 	if err != nil {
 		helpers.RespondWithError(w, 401, "Unauthorized")
 		return
-	}	
+	}
 
 	_, err = cfg.DB.UpdateRevokeAt(r.Context(), refreshToken)
 	if err != nil {
 		helpers.RespondWithError(w, 401, "Unauthorized")
 		return
-	}	
+	}
 
-	helpers.RespondNoContent(w)		
+	helpers.RespondNoContent(w)
 }

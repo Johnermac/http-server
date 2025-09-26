@@ -11,30 +11,29 @@ import (
 
 // bad-word-filter
 
-func BadWordReplacement (payload string) string{	
-  original := strings.Split(payload, " ")  
+func BadWordReplacement(payload string) string {
+	original := strings.Split(payload, " ")
 	out := make([]string, 0, len(original))
 	wordsToFilter := []string{"kerfuffle", "sharbert", "fornax"}
 
 	for _, o := range original {
-		if slices.Contains(wordsToFilter, strings.ToLower(o)){
-			out = append(out, "****")	
-		}	else {
-			out = append(out, o)	
-		}			
+		if slices.Contains(wordsToFilter, strings.ToLower(o)) {
+			out = append(out, "****")
+		} else {
+			out = append(out, o)
+		}
 	}
 
 	return strings.Join(out, " ")
 }
 
-
 // respond-with-JSON
 
 func RespondWithJSON(w http.ResponseWriter, code int, payload any) error {
-  response, err := json.Marshal(payload)
-  if err != nil {
-      return err
-  }
+	response, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -46,13 +45,13 @@ func RespondWithJSON(w http.ResponseWriter, code int, payload any) error {
 // respond-with-error
 
 func RespondWithError(w http.ResponseWriter, code int, msg string) error {
-    return RespondWithJSON(w, code, map[string]string{"error": msg})
+	return RespondWithJSON(w, code, map[string]string{"error": msg})
 }
 
 // respond-no-content
 func RespondNoContent(w http.ResponseWriter) {
-    w.Header().Set("Access-Control-Allow-Origin", "*")
-    w.WriteHeader(http.StatusNoContent)
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // parse-request
@@ -68,4 +67,3 @@ func ParseRequest[T any](r *http.Request) (T, error) {
 	}
 	return params, nil
 }
-
