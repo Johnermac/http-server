@@ -47,37 +47,37 @@ It demonstrates how to build a JSON-based HTTP server with authentication, autho
 ### Setup
 
 1. Clone the repo:
-   ```bash
-   git clone https://github.com/Johnermac/http-server.git
-   cd http-server
-````
+```bash
+git clone https://github.com/Johnermac/http-server.git
+cd http-server
+```
 
 2. Create `.env` file:
 
-   ```env
-   DB_URL=postgres://user:password@localhost:5432/chirpy?sslmode=disable
-   JWT_SECRET=your_jwt_secret
-   PLATFORM=local
-   POLKA_KEY=your_polka_key
-   ```
+```env
+DB_URL=postgres://user:password@localhost:5432/chirpy?sslmode=disable
+JWT_SECRET=your_jwt_secret
+PLATFORM=local
+POLKA_KEY=your_polka_key
+```
 
 3. Run migrations:
 
-   ```bash
-   goose postgres -dir sql/schema "$DB_URL" up
-   ```
+```bash
+goose postgres -dir sql/schema "$DB_URL" up
+```
 
 4. Generate SQLC code:
 
-   ```bash
-   sqlc generate
-   ```
+```bash
+sqlc generate
+```
 
 5. Start the server:
 
-   ```bash
-   go run main.go
-   ```
+```bash
+go run main.go
+```
 
 Server runs on `http://localhost:8080`.
 
