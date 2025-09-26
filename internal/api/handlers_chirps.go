@@ -67,9 +67,25 @@ func (cfg *APIConfig) CreateChirpHandler(w http.ResponseWriter, r *http.Request)
 
 // get-all-chirps
 func (cfg *APIConfig) GetAllChirpsHandler(w http.ResponseWriter, r *http.Request){
-	chirps, err := cfg.DB.GetAllChirps(r.Context())
+	var chirps []database.Chirp
+	var err error
+
+	authorID := r.URL.Query().Get("author_id")
+	if len(authorID) < 1 {
+		// author is not specified, get-all-chirps
+		chirps, err = cfg.DB.GetAllChirps(r.Context())
+	} else {
+		userID,err := uuid.Parse(authorID)
+		if err != nil {
+			helpers.RespondWithError(w, 500, "Error parsing authorID")
+			return
+		}	
+		// get-chirps-by-author
+		chirps, err = cfg.DB.GetChirpsByAuthor(r.Context(), userID)	
+	}
+	
 	if err != nil {
-		helpers.RespondWithError(w, 500, "Get All Chirps error")
+		helpers.RespondWithError(w, 500, "Get Chirps error")
 		return
 	}
 

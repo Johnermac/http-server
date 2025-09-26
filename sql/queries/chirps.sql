@@ -1,6 +1,10 @@
 -- name: GetAllChirps :many
-SELECT id, created_at, updated_at, body, user_id
-FROM chirps
+SELECT * FROM chirps
+ORDER BY created_at ASC;
+
+-- name: GetChirpsByAuthor :many
+SELECT * FROM chirps
+WHERE user_id = $1 -- user_id
 ORDER BY created_at ASC;
 
 -- name: CreateChirp :one
