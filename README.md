@@ -57,7 +57,7 @@ cd http-server
 ```env
 DB_URL=postgres://user:password@localhost:5432/chirpy?sslmode=disable
 JWT_SECRET=your_jwt_secret
-PLATFORM=local
+PLATFORM=dev
 POLKA_KEY=your_polka_key
 ```
 
