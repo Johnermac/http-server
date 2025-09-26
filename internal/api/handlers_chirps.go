@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"net/http"
+	"sort"
 	"time"
 
 	"github.com/Johnermac/http-server/internal/database"
@@ -70,6 +71,14 @@ func (cfg *APIConfig) GetAllChirpsHandler(w http.ResponseWriter, r *http.Request
 	var chirps []database.Chirp
 	var err error
 
+	type responseBody struct {		
+		Id uuid.UUID `json:"id"`
+		Created_at time.Time `json:"created_at"`
+		Updated_at time.Time `json:"updated_at"`
+		Data string `json:"body"`
+		User_id uuid.UUID `json:"user_id"`
+	}
+
 	authorID := r.URL.Query().Get("author_id")
 	if len(authorID) < 1 {
 		// author is not specified, get-all-chirps
@@ -89,8 +98,30 @@ func (cfg *APIConfig) GetAllChirpsHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// respond with array	
-	helpers.RespondWithJSON(w, 200, chirps)				
+	sortParam := r.URL.Query().Get("sort")
+	if sortParam == "desc" {
+		sort.Slice(chirps, func(i, j int) bool {
+			return chirps[i].CreatedAt.After(chirps[j].CreatedAt) // desc
+		})
+	} else {
+		sort.Slice(chirps, func(i, j int) bool {
+			return chirps[i].CreatedAt.Before(chirps[j].CreatedAt) // asc
+		})
+	}
+
+	responses := make([]responseBody, len(chirps))
+	for i, c := range chirps {
+		responses[i] = responseBody{
+			Id:        c.ID,
+			Created_at: c.CreatedAt,
+			Updated_at: c.UpdatedAt,
+			Data:      c.Body,
+			User_id:    c.UserID,
+		}
+	}
+
+	helpers.RespondWithJSON(w, 200, responses)
+					
 }
 
 // get-chirp
